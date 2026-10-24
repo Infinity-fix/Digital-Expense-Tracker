@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LedgerFlow — All Expenses &amp; Filters</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body data-page="expenses">
+    <div class="app-shell">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <a href="/" class="brand-wordmark">LedgerFlow</a>
+                <button class="sidebar-close-btn" id="closeSidebarBtn" aria-label="Close navigation">&times;</button>
+            </div>
+
+            <nav class="sidebar-nav" aria-label="Main Navigation">
+                <a href="/" class="nav-link">Dashboard Overview</a>
+                <a href="/expenses" class="nav-link active">All Expenses Ledger</a>
+                <a href="/api/export-csv" class="nav-link">Export CSV Report</a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <p class="sidebar-meta">SQLite Persistent Ledger</p>
+                <p class="sidebar-submeta">Parameterized SQL Queries</p>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <div class="main-area">
+            <!-- Top Navigation Bar -->
+            <header class="topbar">
+                <div class="topbar-zone-brand">
+                    <button class="mobile-menu-btn" id="openSidebarBtn" aria-label="Open navigation">&#9776;</button>
+                    <span class="breadcrumb-title">Workspace / All Expenses Ledger</span>
+                </div>
+
+                <nav class="topbar-zone-nav" aria-label="Quick Links">
+                    <a href="/" class="topbar-link">Overview</a>
+                    <a href="/expenses" class="topbar-link active">Transactions</a>
+                </nav>
+
+                <div class="topbar-zone-actions">
+                    <button type="button" class="btn-secondary" id="themeToggleBtn">
+                        <span id="themeToggleLabel">Dark Mode</span>
+                    </button>
+                    <button type="button" class="btn-primary" id="exportFilteredCsvBtn">Export CSV</button>
+                </div>
+            </header>
+
+            <main class="content-container">
+                <!-- Filter & Search Control Bar -->
+                <section class="panel-card">
+                    <div class="panel-header panel-header-spread">
+                        <div>
+                            <h1 class="panel-title">Search, Filter &amp; Manage Expenses</h1>
+                            <p class="panel-subtitle">Filter by date range, category, or keyword and sort by any column</p>
+                        </div>
+                        <div class="filtered-summary-inline">
+                            <span>Matching Records: <strong class="tabular-nums" id="filteredCountLabel">0</strong></span>
+                            <span class="meta-sep">·</span>
+                            <span>Filtered Total: <strong class="tabular-nums" id="filteredTotalLabel">₹0.00</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="filter-bar">
+                        <div class="form-group">
+                            <label for="searchInput">Search Description or Category</label>
+                            <input type="text" id="searchInput" placeholder="Search keyword..." />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="filterCategory">Category</label>
+                            <select id="filterCategory">
+                                <option value="All">All Categories</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat }}">{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="filterStartDate">From Date</label>
+                            <input type="date" id="filterStartDate" />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="filterEndDate">To Date</label>
+                            <input type="date" id="filterEndDate" />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="sortBySelect">Sort By</label>
+                            <select id="sortBySelect">
+                                <option value="date-desc">Date (Newest First)</option>
+                                <option value="date-asc">Date (Oldest First)</option>
+                                <option value="amount-desc">Amount (High to Low)</option>
+                                <option value="amount-asc">Amount (Low to High)</option>
+                                <option value="category-asc">Category (A–Z)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group form-submit-align">
+                            <button type="button" class="btn-secondary" id="resetFiltersBtn">Reset</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Quick Add Inline Form -->
+                <section class="panel-card">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Add Expense</h2>
+                    </div>
+                    <form id="addExpenseForm" class="expense-form-inline" novalidate>
+                        <div class="form-group">
+                            <label for="expenseDate">Date</label>
+                            <input type="date" id="expenseDate" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="expenseCategory">Category</label>
+                            <select id="expenseCategory" required>
+                                <option value="">Select Category</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat }}">{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group form-group-wide">
+                            <label for="expenseDescription">Description</label>
+                            <input type="text" id="expenseDescription" placeholder="Enter expense description" maxlength="200" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="expenseAmount">Amount (₹)</label>
+                            <input type="number" id="expenseAmount" placeholder="0.00" step="0.01" min="0.01" required />
+                        </div>
+                        <div class="form-group form-submit-align">
+                            <button type="submit" class="btn-primary">Add Entry</button>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Full Expenses Ledger Table -->
+                <section class="panel-card">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Date (DD/MM/YY)</th>
+                                    <th>ISO Date</th>
+                                    <th>Category</th>
+                                    <th>Description</th>
+                                    <th class="text-right">Amount</th>
+                                    <th class="text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allExpensesBody">
+                                <tr>
+                                    <td colspan="7" class="empty-cell">Loading expenses...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Edit Expense Modal -->
+    <div class="modal-backdrop hidden" id="editModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="editModalTitle">Edit Expense Record</h3>
+                <button type="button" class="modal-close" id="closeEditModalBtn" aria-label="Close modal">&times;</button>
+            </div>
+            <form id="editExpenseForm" novalidate>
+                <input type="hidden" id="editExpenseId" />
+                <div class="form-row-two">
+                    <div class="form-group">
+                        <label for="editExpenseDate">Date</label>
+                        <input type="date" id="editExpenseDate" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="editExpenseCategory">Category</label>
+                        <select id="editExpenseCategory" required>
+                            {% for cat in categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="editExpenseDescription">Description</label>
+                    <input type="text" id="editExpenseDescription" maxlength="200" required />
+                </div>
+                <div class="form-group">
+                    <label for="editExpenseAmount">Amount (₹)</label>
+                    <input type="number" id="editExpenseAmount" step="0.01" min="0.01" required />
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelEditBtn">Cancel</button>
+                    <button type="submit" class="btn-primary">Update Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-backdrop hidden" id="deleteModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+        <div class="modal-box modal-box-sm">
+            <div class="modal-header">
+                <h3 id="deleteModalTitle">Confirm Deletion</h3>
+                <button type="button" class="modal-close" id="closeDeleteModalBtn" aria-label="Close modal">&times;</button>
+            </div>
+            <p class="modal-body-text" id="deleteModalMessage">
+                Are you sure you want to permanently delete this expense?
+            </p>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" id="cancelDeleteBtn">Cancel</button>
+                <button type="button" class="btn-danger" id="confirmDeleteBtn">Delete Expense</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

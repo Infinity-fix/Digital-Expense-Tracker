@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LedgerFlow — Expense Tracker Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body data-page="dashboard">
+    <div class="app-shell">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <a href="/" class="brand-wordmark">LedgerFlow</a>
+                <button class="sidebar-close-btn" id="closeSidebarBtn" aria-label="Close navigation">&times;</button>
+            </div>
+
+            <nav class="sidebar-nav" aria-label="Main Navigation">
+                <a href="/" class="nav-link active">Dashboard Overview</a>
+                <a href="/expenses" class="nav-link">All Expenses Ledger</a>
+                <a href="/api/export-csv" class="nav-link">Export CSV Report</a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <p class="sidebar-meta">SQLite Persistent Ledger</p>
+                <p class="sidebar-submeta">Date format: DD/MM/YY &amp; ISO</p>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <div class="main-area">
+            <!-- Top Navigation Bar -->
+            <header class="topbar">
+                <div class="topbar-zone-brand">
+                    <button class="mobile-menu-btn" id="openSidebarBtn" aria-label="Open navigation">&#9776;</button>
+                    <span class="breadcrumb-title">Workspace / Financial Overview</span>
+                </div>
+
+                <nav class="topbar-zone-nav" aria-label="Quick Links">
+                    <a href="/" class="topbar-link active">Overview</a>
+                    <a href="/expenses" class="topbar-link">Transactions</a>
+                    <a href="#analyticsSection" class="topbar-link">Analytics</a>
+                    <a href="#categorySummarySection" class="topbar-link">Categories</a>
+                </nav>
+
+                <div class="topbar-zone-actions">
+                    <button type="button" class="btn-secondary" id="themeToggleBtn" aria-label="Toggle Light/Dark Mode">
+                        <span id="themeToggleLabel">Dark Mode</span>
+                    </button>
+                    <a href="/api/export-csv" class="btn-primary">Export CSV</a>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <main class="content-container">
+                <!-- KPI Summary Row -->
+                <section class="kpi-grid" aria-label="Expense Summary Metrics">
+                    <article class="kpi-card">
+                        <span class="kpi-label">Total Expenses</span>
+                        <strong class="kpi-value tabular-nums" id="kpiTotalExpenses">₹0.00</strong>
+                        <span class="kpi-caption">Cumulative recorded spending</span>
+                    </article>
+
+                    <article class="kpi-card">
+                        <span class="kpi-label">Current Month</span>
+                        <strong class="kpi-value tabular-nums" id="kpiMonthExpenses">₹0.00</strong>
+                        <span class="kpi-caption" id="kpiMonthCaption">This calendar month</span>
+                    </article>
+
+                    <article class="kpi-card">
+                        <span class="kpi-label">Today's Spending</span>
+                        <strong class="kpi-value tabular-nums" id="kpiTodayExpenses">₹0.00</strong>
+                        <span class="kpi-caption" id="kpiTodayCaption">Logged for today</span>
+                    </article>
+
+                    <article class="kpi-card">
+                        <span class="kpi-label">Transactions</span>
+                        <strong class="kpi-value tabular-nums" id="kpiTransactionCount">0</strong>
+                        <span class="kpi-caption">Total persisted records</span>
+                    </article>
+                </section>
+
+                <!-- Primary Split: Add Expense Form + Spending Charts -->
+                <section class="dashboard-split" id="analyticsSection">
+                    <!-- Add Expense Form Card -->
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div>
+                                <h2 class="panel-title">Record New Expense</h2>
+                                <p class="panel-subtitle">Log a transaction into your persistent SQLite ledger</p>
+                            </div>
+                        </div>
+
+                        <form id="addExpenseForm" class="expense-form" novalidate>
+                            <div class="form-row-two">
+                                <div class="form-group">
+                                    <label for="expenseDate">Date (Calendar or DD/MM/YY)</label>
+                                    <input type="date" id="expenseDate" name="date" required />
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="expenseCategory">Category</label>
+                                    <select id="expenseCategory" name="category" required>
+                                        <option value="">Select Category</option>
+                                        {% for cat in categories %}
+                                        <option value="{{ cat }}">{{ cat }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="expenseDescription">Description</label>
+                                <input
+                                    type="text"
+                                    id="expenseDescription"
+                                    name="description"
+                                    placeholder="e.g., Campus cafe lunch, Python textbook, Metro pass"
+                                    maxlength="200"
+                                    required
+                                />
+                            </div>
+
+                            <div class="form-row-two">
+                                <div class="form-group">
+                                    <label for="expenseAmount">Amount (₹)</label>
+                                    <input
+                                        type="number"
+                                        id="expenseAmount"
+                                        name="amount"
+                                        placeholder="0.00"
+                                        step="0.01"
+                                        min="0.01"
+                                        required
+                                    />
+                                </div>
+
+                                <div class="form-group form-submit-align">
+                                    <button type="submit" class="btn-primary btn-full" id="submitExpenseBtn">
+                                        Save Expense
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Category Chart Card -->
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div>
+                                <h2 class="panel-title">Category Breakdown</h2>
+                                <p class="panel-subtitle">Distribution across expense categories</p>
+                            </div>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Secondary Split: Monthly Breakdown Chart + Category Summary Table -->
+                <section class="dashboard-split" id="categorySummarySection">
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div>
+                                <h2 class="panel-title">Monthly Spending Trend</h2>
+                                <p class="panel-subtitle">Month-over-month total outflow</p>
+                            </div>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="monthlyChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="panel-card">
+                        <div class="panel-header">
+                            <div>
+                                <h2 class="panel-title">Category-Wise Summary</h2>
+                                <p class="panel-subtitle">Total amount, transaction count, and share</p>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th class="text-right">Transactions</th>
+                                        <th class="text-right">Share</th>
+                                        <th class="text-right">Total Spent</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="categorySummaryBody">
+                                    <tr>
+                                        <td colspan="4" class="empty-cell">Loading category summary...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Recent Expenses Table -->
+                <section class="panel-card">
+                    <div class="panel-header panel-header-spread">
+                        <div>
+                            <h2 class="panel-title">Recent Expenses</h2>
+                            <p class="panel-subtitle">Latest transactions recorded in SQLite</p>
+                        </div>
+                        <a href="/expenses" class="btn-secondary">View All &amp; Filter</a>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date (DD/MM/YY)</th>
+                                    <th>Category</th>
+                                    <th>Description</th>
+                                    <th class="text-right">Amount</th>
+                                    <th class="text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentExpensesBody">
+                                <tr>
+                                    <td colspan="5" class="empty-cell">Loading recent expenses...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Edit Expense Modal -->
+    <div class="modal-backdrop hidden" id="editModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="editModalTitle">Edit Expense Record</h3>
+                <button type="button" class="modal-close" id="closeEditModalBtn" aria-label="Close modal">&times;</button>
+            </div>
+            <form id="editExpenseForm" novalidate>
+                <input type="hidden" id="editExpenseId" />
+                <div class="form-row-two">
+                    <div class="form-group">
+                        <label for="editExpenseDate">Date</label>
+                        <input type="date" id="editExpenseDate" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="editExpenseCategory">Category</label>
+                        <select id="editExpenseCategory" required>
+                            {% for cat in categories %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="editExpenseDescription">Description</label>
+                    <input type="text" id="editExpenseDescription" maxlength="200" required />
+                </div>
+                <div class="form-group">
+                    <label for="editExpenseAmount">Amount (₹)</label>
+                    <input type="number" id="editExpenseAmount" step="0.01" min="0.01" required />
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelEditBtn">Cancel</button>
+                    <button type="submit" class="btn-primary">Update Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-backdrop hidden" id="deleteModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+        <div class="modal-box modal-box-sm">
+            <div class="modal-header">
+                <h3 id="deleteModalTitle">Confirm Deletion</h3>
+                <button type="button" class="modal-close" id="closeDeleteModalBtn" aria-label="Close modal">&times;</button>
+            </div>
+            <p class="modal-body-text" id="deleteModalMessage">
+                Are you sure you want to permanently delete this expense? This action cannot be undone.
+            </p>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" id="cancelDeleteBtn">Cancel</button>
+                <button type="button" class="btn-danger" id="confirmDeleteBtn">Delete Expense</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
